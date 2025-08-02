@@ -102,7 +102,7 @@ public class TemperatureAggregationJob {
 
     /**
      * Combiner for aggregating temperature values.
-     * The output type is now AggregationResult, not Double.
+     * The output type is AggregationResult
      */
     public static class TemperatureAggregator extends Combine.CombineFn<EquipmentEvent, TemperatureAggregator.Accum, AggregationResult> {
 
