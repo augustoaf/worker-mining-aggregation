@@ -27,7 +27,7 @@ import java.io.Serializable;
 
 /**
  * Apache Beam job for aggregating equipment temperature data from RabbitMQ.
- * <p>
+ * 
  * This job:
  * 1. Reads equipment events from the 'raw_equipment_events' RabbitMQ queue
  * 2. Groups events by equipment_id and 10-second time windows
@@ -87,7 +87,6 @@ public class TemperatureAggregationJob {
 
     /**
      * A custom class to hold the aggregated results (average and count).
-     * This is what the aggregator will now return.
      */
     public static class AggregationResult implements Serializable {
         private static final long serialVersionUID = 1L;
@@ -137,7 +136,7 @@ public class TemperatureAggregationJob {
         }
 
         @Override
-        // The extractOutput now returns our new AggregationResult object
+        // The extractOutput returns the final desired AggregationResult object
         public AggregationResult extractOutput(Accum accumulator) {
             double avg = accumulator.count > 0 ? accumulator.sum / accumulator.count : 0.0;
             return new AggregationResult(avg, accumulator.count);
@@ -146,11 +145,10 @@ public class TemperatureAggregationJob {
 
     /**
      * DoFn to convert aggregated results to TemperatureAggregation objects.
-     * This DoFn now receives a KV with our custom AggregationResult.
+     * This DoFn receives a KV with our custom AggregationResult.
      */
     public static class ConvertToAggregationFn extends DoFn<KV<Long, AggregationResult>, TemperatureAggregation> {
 
-        // It's a good practice to define formatters as static constants
         private static final DateTimeFormatter ISO_LOCAL_DATE_TIME = DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ss.SSS");
 
         @ProcessElement

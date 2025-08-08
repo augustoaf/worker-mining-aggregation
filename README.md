@@ -1,13 +1,15 @@
 # Worker Aggregation - Apache Beam Temperature Aggregation
 
-This Apache Beam application reads equipment events from a RabbitMQ queue, aggregates temperature data over 10-second time windows per equipment, and publishes the results to another RabbitMQ queue.
+This Apache Beam application (with custom BoundedSource) reads equipment events from a message queue, aggregates temperature data over 10-second time windows per equipment, and publishes the results to another message queue.
+
+Important: This implementation considers a custom Apache Beam BoundedSource for RabbitMQ Message Broker just to drain the Queue. Usually for streamings like a message queue and to achieve parallelism, the implementation needs to consider UnboundedSource.
 
 ## Features
 
 - **RabbitMQ Integration**: Reads from `raw_equipment_events` queue and writes to `agg_temperature` queue
 - **Time-based Aggregation**: Groups events by equipment ID and 10-second time windows
 - **Temperature Averaging**: Calculates average temperature for each equipment in each window
-- **Real-time Processing**: Uses Apache Beam for scalable stream processing
+- **Real-time Processing**: Uses Apache Beam for stream processing
 
 ## Prerequisites
 
@@ -160,18 +162,5 @@ The application uses SLF4J logging. Set the log level in your JVM arguments:
 ## Performance Considerations
 
 - The application uses Apache Beam's Direct Runner by default
-- For production use, consider using a distributed runner like Dataflow or Flink
+- For production use, consider using a distributed runner like Dataflow or Aoache Flink
 - Adjust window size and batch processing based on your throughput requirements
-- Monitor RabbitMQ queue depths to ensure proper processing
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details. 

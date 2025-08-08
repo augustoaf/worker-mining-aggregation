@@ -19,6 +19,9 @@ import java.util.NoSuchElementException;
 
 /**
  * Bounded source for reading equipment events from RabbitMQ.
+ * 
+ * Note: Having a message queue considered as a Bounded source, the objective is to drain the queue, then complete the pieline.
+ *
  */
 public class RabbitMQSource extends BoundedSource<EquipmentEvent> {
     
@@ -38,13 +41,13 @@ public class RabbitMQSource extends BoundedSource<EquipmentEvent> {
     @Override
     public List<BoundedSource<EquipmentEvent>> split(long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
         List<BoundedSource<EquipmentEvent>> sources = new ArrayList<>();
-        sources.add(this);
+        sources.add(this); // provide the entire source data ('this') because there is no way to achieve parallelism with Apache Beam BoundedSource implementation with a single queue.
         return sources;
     }
     
     @Override
     public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
-        return 1024; // Default estimate
+        return 1024; // Default estimate - you can provide a real estimation, but it is pointless for a BoundedSource implementation for a queue (which is a streaming)
     }
     
     //The Beam runner calls this method on each worker that has been assigned a BoundedSource to process.
