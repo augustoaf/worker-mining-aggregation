@@ -41,6 +41,7 @@ public class TemperatureAggregationJob {
 
     // Queue names
     private static final String INPUT_QUEUE = "raw_equipment_events";
+    private static final String DLQ_QUEUE = "dlq_equipment_events";
     private static final String OUTPUT_QUEUE = "agg_temperature";
 
     // Window duration
@@ -51,7 +52,7 @@ public class TemperatureAggregationJob {
         Pipeline pipeline = Pipeline.create(options);
 
         // Read from RabbitMQ
-        RabbitMQSource rabbitMQSource = new RabbitMQSource(new RabbitMQConfig(INPUT_QUEUE));
+        RabbitMQSource rabbitMQSource = new RabbitMQSource(new RabbitMQConfig(INPUT_QUEUE, DLQ_QUEUE));
         PCollection<EquipmentEvent> events = pipeline
                 .apply("Read from RabbitMQ", org.apache.beam.sdk.io.Read.from(rabbitMQSource))
                 .setCoder(SerializableCoder.of(EquipmentEvent.class));

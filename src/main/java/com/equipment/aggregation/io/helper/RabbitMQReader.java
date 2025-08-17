@@ -5,6 +5,7 @@ import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 
 import com.equipment.aggregation.io.RabbitMQSource;
 import com.equipment.aggregation.model.EquipmentEvent;
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.rabbitmq.client.*;
@@ -62,7 +63,10 @@ public class RabbitMQReader extends BoundedReader<EquipmentEvent> {
             connection = factory.newConnection();
             channel = connection.createChannel();
             channel.queueDeclare(config.getQueueName(), true, false, false, null);
-            
+            LOG.info("Queue declared: {}", config.getQueueName());
+            channel.queueDeclare(config.getDlqQueueName(), true, false, false, null);
+            LOG.info("Queue declared: {}", config.getDlqQueueName());
+
             started = true;
             LOG.info("Started reading from RabbitMQ queue: {}", config.getQueueName());
             return advance();
@@ -77,14 +81,17 @@ public class RabbitMQReader extends BoundedReader<EquipmentEvent> {
     //It is called repeatedly by the Beam runner to read the next element from the source.
     @Override
     public boolean advance() throws IOException {
+        
+        String message = ""; 
+
         try {
             if (!started) {
                 return start();
             }
-            
+
             response = channel.basicGet(config.getQueueName(), false);
             if (response != null) {
-                String message = new String(response.getBody());
+                message = new String(response.getBody());
                 currentElement = objectMapper.readValue(message, EquipmentEvent.class);
                 
                 // Acknowledge the message
@@ -95,6 +102,21 @@ public class RabbitMQReader extends BoundedReader<EquipmentEvent> {
             }
             return false;
             
+        } catch (JsonParseException e) {
+            LOG.error("Error parsing input message", e);
+            try {
+                //  move to Dead Letter Queue, Acknowledge the message and continue processing 
+                channel.basicPublish("", this.config.getDlqQueueName(), null, message.getBytes("UTF-8"));
+                channel.basicAck(response.getEnvelope().getDeliveryTag(), false);
+                // Instead of returning true, recursively call advance() to get the NEXT message.
+                // This ensures that we are not presenting invalid 'currentElement' to the runner.
+                // otherwise the runner will try to process this element, which is invalid, in the steps of the 
+                // aggregation logic and will fail.
+                return advance();
+            } catch (Exception dlqException) {
+                LOG.error("Failed to move message to DLQ", dlqException);
+                return false;
+            }
         } catch (Exception e) {
             LOG.error("Error advancing RabbitMQ reader", e);
             return false;

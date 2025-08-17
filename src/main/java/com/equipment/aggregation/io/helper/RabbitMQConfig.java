@@ -15,9 +15,11 @@ public class RabbitMQConfig implements Serializable {
     private String password = "guest";
     private String virtualHost = "/";
     private String queueName;
+    private String dlqQueueName;
 
-    public RabbitMQConfig(String queueName) {
+    public RabbitMQConfig(String queueName, String dlqQueueName) {
         this.queueName = queueName;
+        this.dlqQueueName = dlqQueueName;
     }
 
     // Getters and setters
@@ -38,4 +40,7 @@ public class RabbitMQConfig implements Serializable {
 
     public String getQueueName() { return queueName; }
     public void setQueueName(String queueName) { this.queueName = queueName; }
+
+    public String getDlqQueueName() { return dlqQueueName; }
+    public void setDlqQueueName(String dlqQueueName) { this.dlqQueueName = dlqQueueName; }
 }
