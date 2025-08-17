@@ -1,6 +1,7 @@
 package com.equipment.aggregation;
 
 import com.equipment.aggregation.io.RabbitMQSource;
+import com.equipment.aggregation.io.helper.RabbitMQConfig;
 import com.equipment.aggregation.io.RabbitMQSink;
 import com.equipment.aggregation.model.EquipmentEvent;
 import com.equipment.aggregation.model.TemperatureAggregation;
@@ -29,10 +30,10 @@ import java.io.Serializable;
  * Apache Beam job for aggregating equipment temperature data from RabbitMQ.
  * 
  * This job:
- * 1. Reads equipment events from the 'raw_equipment_events' RabbitMQ queue
+ * 1. Reads equipment events from the 'raw_equipment_events' topic
  * 2. Groups events by equipment_id and 10-second time windows
  * 3. Calculates the average temperature and count for each equipment in each window
- * 4. Publishes aggregated results to the 'agg_temperature' RabbitMQ queue
+ * 4. Publishes aggregated results to the 'agg_temperature' topic
  */
 public class TemperatureAggregationJob {
 
@@ -50,7 +51,7 @@ public class TemperatureAggregationJob {
         Pipeline pipeline = Pipeline.create(options);
 
         // Read from RabbitMQ
-        RabbitMQSource rabbitMQSource = new RabbitMQSource(new RabbitMQSource.RabbitMQConfig(INPUT_QUEUE));
+        RabbitMQSource rabbitMQSource = new RabbitMQSource(new RabbitMQConfig(INPUT_QUEUE));
         PCollection<EquipmentEvent> events = pipeline
                 .apply("Read from RabbitMQ", org.apache.beam.sdk.io.Read.from(rabbitMQSource))
                 .setCoder(SerializableCoder.of(EquipmentEvent.class));
@@ -58,7 +59,7 @@ public class TemperatureAggregationJob {
         // Apply windowing and aggregation
         PCollection<TemperatureAggregation> aggregations = events
                 .apply("Add Timestamps", ParDo.of(new AddTimestampsFn()))//add a timestamp to each EquipmentEvent object in the PCollection in order to enable aggregation in a time-based window - Data in streaming pipeline does not have an inherited timestamp
-                .apply("Key by Equipment ID", WithKeys.of(EquipmentEvent::getEquipmentId))//prepare the data to key-value based in order to enable aggregation by key > converts the PCollection<EquipmentEvent> into PCollection<KV<Long, EquipmentEvent>> 
+                .apply("Key by Equipment ID", WithKeys.of(EquipmentEvent::getEquipmentId))//prepare the data to 'key-value based' in order to enable aggregation by key > converts the PCollection<EquipmentEvent> into PCollection<KV<Long, EquipmentEvent>> 
                 .setCoder(KvCoder.of(VarLongCoder.of(), SerializableCoder.of(EquipmentEvent.class)))//identify the Coder for serialize/deserialize for the new PCollection key-value based.
                 .apply("Window into 10s", Window.into(FixedWindows.of(WINDOW_DURATION)))//group all the data according the window specified > like multiple PCollections considering the windows for the whole dataset 
                 .apply("Aggregate Temperature", Combine.perKey(new TemperatureAggregator()))// group the data per key inside each window and run the aggregation > The output of this step will be a PCollection<KV<Long, AggregationResult>>
